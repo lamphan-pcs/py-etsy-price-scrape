@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.csv
+*.json
+.env
+debug_page_*.html
+debug_page_*.png
+*.log
+.DS_Store
