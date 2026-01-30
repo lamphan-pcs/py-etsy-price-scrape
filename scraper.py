@@ -88,8 +88,9 @@ async def scrape_etsy_shop(shop_url):
                     # Select Currency USD
                     await page.select_option("#locale-overlay-select-currency_code", "USD")
                     
-                    # Click Save
-                    await page.click("#locale-overlay-save")
+                    # Click Save - try multiple reliable selectors
+                    save_btn = page.locator('button[name="save"][type="submit"], button:has-text("Save")').first
+                    await save_btn.click()
                     
                     # Wait for page reload
                     await page.wait_for_load_state("domcontentloaded")
