@@ -4,6 +4,8 @@ import pandas as pd
 import random
 import json
 import re
+import os
+from datetime import datetime
 
 # Global timeout configuration
 TIMEOUT = 0 # No timeout for navigation in case of captcha
@@ -55,6 +57,12 @@ async def scrape_etsy_shop(shop_url):
         if "captcha" in page.url or await page.locator("iframe[src*='captcha']").count() > 0:
             print("CAPTCHA detected! Please solve it in the browser window.")
             print("The script will continue automatically once it detects listing items.")
+
+        # Allow manual adjustment
+        print("-" * 50)
+        print("PAUSED: Please adjust Language/Currency settings in the browser window now if needed.")
+        input("Press Enter in this terminal to start scraping...")
+        print("-" * 50)
         
         while has_next_page:
             current_url = f"{shop_url}?ref=items_pagination&page={page_num}"
@@ -107,7 +115,7 @@ async def scrape_etsy_shop(shop_url):
                     title_el = card.locator('h3, .v2-listing-card__title').first
                     if await title_el.count() > 0:
                         title = await title_el.text_content()
-                        title = title.strip()
+                        title = title.strip().replace('â€“', '–')
                     
                     # Price Info
                     price_text = ""
@@ -116,7 +124,8 @@ async def scrape_etsy_shop(shop_url):
                     value_el = card.locator('.currency-value').first
                     
                     if await value_el.count() > 0:
-                        price_text = await value_el.text_content()
+                        symbol = await currency_el.text_content() if await currency_el.count() > 0 else ""
+                        price_text = symbol + await value_el.text_content()
                     
                     # Check for discount
                     # Sometimes structure is: <span class="wt-text-caption">Original Price</span> <span class="n-listing-card__price">Discounted</span>
@@ -128,11 +137,25 @@ async def scrape_etsy_shop(shop_url):
                         raw_price = raw_price.replace("\n", " ")
                     else:
                         raw_price = price_text
-                        
+                    
+                    # Derived Columns D and E
+                    # D: First price match (Sale or Regular)
+                    match_d = re.search(r"\$(\d+(?:\.\d{1,2})?)", raw_price)
+                    val_d = match_d.group(1) if match_d else ""
+                    
+                    # E: Original Price if found, else D
+                    match_e = re.search(r"Original Price[^$]*\$(\d+(?:\.\d{1,2})?)", raw_price)
+                    if match_e:
+                        val_e = match_e.group(1)
+                    else:
+                        val_e = val_d
+
                     products_data.append({
                         "url": clean_url,
                         "title": title,
-                        "price_display": raw_price
+                        "price_display": raw_price,
+                        "current_price": val_d,
+                        "original_price": val_e
                     })
 
                 except Exception as e:
@@ -157,8 +180,16 @@ if __name__ == "__main__":
     data = asyncio.run(scrape_etsy_shop(shop_url))
     
     # Save to CSV
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    filename = f"etsy_products_{timestamp}.csv"
+    filepath = os.path.join(output_dir, filename)
+    
     df = pd.DataFrame(data)
-    df.to_csv("etsy_products.csv", index=False)
-    print("Saved data to etsy_products.csv")
+    # Use utf-8-sig to ensure Excel opens the file correctly with special characters
+    df.to_csv(filepath, index=False, encoding='utf-8-sig')
+    print(f"Saved data to {filepath}")
 
 
