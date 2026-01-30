@@ -58,11 +58,47 @@ async def scrape_etsy_shop(shop_url):
             print("CAPTCHA detected! Please solve it in the browser window.")
             print("The script will continue automatically once it detects listing items.")
 
-        # Allow manual adjustment
+        # Allow manual adjustment / Captcha solving
         print("-" * 50)
-        print("PAUSED: Please adjust Language/Currency settings in the browser window now if needed.")
-        input("Press Enter in this terminal to start scraping...")
+        print("PAUSED: Please solve any CAPTCHA in the browser now.")
+        input("Press Enter in this terminal when CAPTCHA is solved to run auto-setup...")
         print("-" * 50)
+
+        # Auto-set Locale/Currency
+        try:
+            print("Checking locale settings...")
+            footer_btn = page.locator("#locale-picker-trigger")
+            if await footer_btn.count() > 0:
+                txt = await footer_btn.text_content()
+                aria = await footer_btn.get_attribute("aria-label")
+                current_info = (txt or "") + (aria or "")
+                
+                if "United States" in current_info and "USD" in current_info:
+                    print("Settings already appear to be US / USD. Skipping update.")
+                else:
+                    print("Setting locale to United States / USD...")
+                    await footer_btn.click()
+                    
+                    # Wait for overlay
+                    await page.wait_for_selector("#locale-overlay-select-region_code", state="visible")
+                    
+                    # Select Region US
+                    await page.select_option("#locale-overlay-select-region_code", "US")
+                    
+                    # Select Currency USD
+                    await page.select_option("#locale-overlay-select-currency_code", "USD")
+                    
+                    # Click Save
+                    await page.click("#locale-overlay-save")
+                    
+                    # Wait for page reload
+                    await page.wait_for_load_state("domcontentloaded")
+                    print("Successfully updated settings to US/USD.")
+                    
+                    # Small pause to ensure products reload
+                    await asyncio.sleep(2)
+        except Exception as e:
+             print(f"Auto-setup warning: {e}")
         
         while has_next_page:
             current_url = f"{shop_url}?ref=items_pagination&page={page_num}"
