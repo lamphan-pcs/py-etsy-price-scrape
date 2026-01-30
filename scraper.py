@@ -56,12 +56,29 @@ async def scrape_etsy_shop(shop_url):
         # specific check for captcha
         if "captcha" in page.url or await page.locator("iframe[src*='captcha']").count() > 0:
             print("CAPTCHA detected! Please solve it in the browser window.")
-            print("The script will continue automatically once it detects listing items.")
 
-        # Allow manual adjustment / Captcha solving
         print("-" * 50)
-        print("PAUSED: Please solve any CAPTCHA in the browser now.")
-        input("Press Enter in this terminal when CAPTCHA is solved to run auto-setup...")
+        print("Monitoring browser... Script will auto-continue when Shop/Listings are detected.")
+        print("PLEASE SOLVE CAPTCHA IF PRESENT.")
+        
+        # Poll loop: Wait until we see real shop content and no captcha
+        while True:
+            try:
+                # Check for success indicators (listings or shop title)
+                listings_count = await page.locator('a.listing-link, a.v2-listing-card__link').count()
+                shop_header_count = await page.locator('.shop-home-header, h1.wt-text-heading-01').count()
+                
+                # Check for block indicators
+                captcha_count = await page.locator("iframe[src*='captcha']").count()
+                
+                if (listings_count > 0 or shop_header_count > 0) and captcha_count == 0:
+                    print(f"Target detected ({listings_count} listings). Proceeding...")
+                    break
+                
+                await asyncio.sleep(1.5)
+            except Exception:
+                await asyncio.sleep(1.5)
+
         print("-" * 50)
 
         # Auto-set Locale/Currency
