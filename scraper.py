@@ -176,7 +176,27 @@ async def scrape_etsy_shop(shop_url):
     return products_data
 
 if __name__ == "__main__":
-    shop_url = "https://www.etsy.com/shop/RubyVibeCo" 
+    # Load configuration
+    config_path = "config.json"
+    shop_url = ""
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                shop_url = config.get("shop_url", "").strip()
+        except:
+            pass
+            
+    if not shop_url:
+        print("No shop_url found in config.json.")
+        shop_url = input("Please enter the Etsy Shop URL: ").strip()
+    
+    if not shop_url:
+        print("No URL provided. Exiting.")
+        exit()
+
+    print(f"Target Shop: {shop_url}")
     data = asyncio.run(scrape_etsy_shop(shop_url))
     
     # Save to CSV
@@ -191,5 +211,17 @@ if __name__ == "__main__":
     # Use utf-8-sig to ensure Excel opens the file correctly with special characters
     df.to_csv(filepath, index=False, encoding='utf-8-sig')
     print(f"Saved data to {filepath}")
+
+    # Copy to clipboard
+    try:
+        df.to_clipboard(sep='\t', index=False)
+        print("-" * 50)
+        print("SUCCESS: Data copied to clipboard!")
+        print("You can now pasting directly into Google Sheets or Excel (Ctrl+V).")
+        print("-" * 50)
+    except Exception as e:
+        print(f"Clipboard copy failed: {e}")
+
+    input("Press Enter to quit...")
 
 

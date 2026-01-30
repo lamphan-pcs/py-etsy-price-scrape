@@ -3,6 +3,7 @@ __pycache__/
 output/
 *.csv
 *.json
+!config.json
 .env
 debug_page_*.html
 debug_page_*.png
